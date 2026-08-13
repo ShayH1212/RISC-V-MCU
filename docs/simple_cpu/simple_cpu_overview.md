@@ -47,8 +47,7 @@
    Opp_Code: 1001
    result = 1 if a < b unsigned
    
-   The ALU also contains a zero flag : 1 when the outpot is 0
-                                       0 otherwise
+   The ALU also contains a zero flag : 1 when the output is 0
    
 ### Register File
    
