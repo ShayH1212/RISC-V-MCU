@@ -3,12 +3,14 @@
 ## Modules
 
 1. ALU
-2. Register File
-3. Program Counter
-4. Program Counter -> next
-5. Instruction Memory
-6. Immediate Generator
-7. Decoder
-8. Branch Comparator
-9. Data Memory
-10. CPU Core
+   This is an arithmetic logic unit
+   The ALU takes in commands as opcodes and performs actions based on these
+3. Register File
+4. Program Counter
+5. Program Counter -> next
+6. Instruction Memory
+7. Immediate Generator
+8. Decoder
+9. Branch Comparator
+10. Data Memory
+11. CPU Core
