@@ -71,6 +71,11 @@
 ### Program Counter -> next
 
    The program counter -> next or pc_next module is used to determine what instruction the program will read next
+   The program counter will normally be updated by 4
+   However, there are some special cases that need to be handeled
+   The program uses two flags, branch_successful and jump, i feither of these are 1 then we have a special case and must change the program counter accordingly
+   if branch_successful : pc = pc + imm
+   if jump  : pc = pc + imm
    
 ### Instruction Memory
 ### Immediate Generator
