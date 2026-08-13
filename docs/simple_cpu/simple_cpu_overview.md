@@ -2,7 +2,8 @@
 
 ## Modules
 
-###ALU
+### ALU
+
    This is an arithmetic logic unit
    The ALU takes in commands as opcodes and performs actions based on these
    
@@ -49,17 +50,17 @@
    The ALU also contains a zero flag : 1 when the outpot is 0
                                        0 otherwise
    
-###Register File
-
-The register file stores the processor’s general purpose registers. In the RV32I architecture, there are 32 registers, each 32 bits wide : identified as x0 through x31.
-
-The register file supports two simultaneous read operations and one write operation. 
-
-The rs1 and rs2 fields from the instruction select the two registers to be read, while rd selects the destination register for a write.
-
-Register x0 is permanently fixed to a value of zero. Any attempt to write to x0 is ignored, and any read from x0 returns zero.
-
-Writes occur on the rising edge of the clock when reg_write is enabled and rd is not zero. The two read outputs are combinational, meaning the selected register values are available immediately when rs1 or rs2 changes.
+### Register File
+   
+   The register file stores the processor’s general purpose registers. In the RV32I architecture, there are 32 registers, each 32 bits wide : identified as x0 through x31.
+   
+   The register file supports two simultaneous read operations and one write operation. 
+   
+   The rs1 and rs2 fields from the instruction select the two registers to be read, while rd selects the destination register for a write.
+   
+   Register x0 is permanently fixed to a value of zero. Any attempt to write to x0 is ignored, and any read from x0 returns zero.
+   
+   Writes occur on the rising edge of the clock when reg_write is enabled and rd is not zero. The two read outputs are combinational, meaning the selected register values are available immediately when rs1 or rs2 changes.
 
 
    4. Program Counter
