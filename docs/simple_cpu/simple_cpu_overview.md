@@ -61,12 +61,20 @@
    
    Writes occur on the rising edge of the clock when reg_write is enabled and rd is not zero. The two read outputs are combinational, meaning the selected register values are available immediately when rs1 or rs2 changes.
 
+### Program Counter
 
-   4. Program Counter
-   5. Program Counter -> next
-   6. Instruction Memory
-   7. Immediate Generator
-   8. Decoder
-   9. Branch Comparator
-   10. Data Memory
-   11. CPU Core
+   The program counter stores the adress of the instriction the CPU is currently excicuting.
+   On every rising edge of the clock it loads the value of the next pc value
+   In a normal operation the value of the next pc will be pc + 4 however in some special cases this changes
+   These special cases are handeled by the pc_next module
+
+### Program Counter -> next
+
+   The program counter -> next or pc_next module is used to determine what instruction the program will read next
+   
+### Instruction Memory
+### Immediate Generator
+### Decoder
+### Branch Comparator
+### Data Memory
+### CPU Core
