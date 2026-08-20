@@ -93,7 +93,7 @@ module alu (
 
             ALU_SRA: 
                 result = $signed(a) >>> b[4:0];
-                else
+                
 
             ALU_SLT: 
             begin

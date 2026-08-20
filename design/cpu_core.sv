@@ -89,7 +89,8 @@ decoder control_unit (
 );
 
 // instantiate the comparator
-comparator branch_comparator (
+
+comp branch_comparator (
     .a(read_reg1),
     .b(read_reg2),
     .funct3(funct3),
@@ -98,7 +99,7 @@ comparator branch_comparator (
 );
 
 // instiantiate the data memory
-data_memory data_mem (
+data_mem data_memory (
     .clk(clk),
     .mem_write(mem_write),
     .address(alu_result),
