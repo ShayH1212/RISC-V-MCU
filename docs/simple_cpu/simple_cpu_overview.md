@@ -1,12 +1,30 @@
 # Simple CPU Design Overview
 
-## Modules
+The first stage of the RISC-V MCU project is a single cycle processor implemented in SystemVerilog.
+In this design, each instruction is fetched, decoded, executed, and completed within a single clock cycle. 
+
+## Architecture
+
+The main components of the single-cycle CPU are:
+
+- Program Counter
+- Instruction Memory
+- Decoder / Control Unit
+- Register File
+- Immediate Generator
+- ALU
+- Branch Comparator
+- Data Memory
+- Next-PC Logic
+- Writeback Selection Logic
 
 ### ALU
 
-   This is an arithmetic logic unit
-   The ALU takes in commands as opcodes and performs actions based on these
-   
+   The ALU preforms the arithmetic, logical, comparison, and shift operations required by the processor
+   The ALU has two 32-bit inputs: "a" and "b", it receives a 4-bit "alu_op" control value from the decoder. 
+   This control value determines which operation the ALU performs.
+   The different values of alu_op are as follows:
+      
    ALU_ADD
    OppCode: 0000
    result = a + b
@@ -47,23 +65,23 @@
    Opp_Code: 1001
    result = 1 if a < b unsigned
    
-   The ALU also contains a zero flag : 1 when the output is 0
+   The ALU also contains a "zero" flag which becomes "1" when the output is zero
    
 ### Register File
    
-   The register file stores the processor’s general purpose registers. In the RV32I architecture, there are 32 registers, each 32 bits wide : identified as x0 through x31.
+   The register file stores the processor’s general purpose registers. In the RV32I architecture, there are 32 registers,    each 32 bits wide : identified as x0 through x31.
    
    The register file supports two simultaneous read operations and one write operation. 
    
-   The rs1 and rs2 fields from the instruction select the two registers to be read, while rd selects the destination register for a write.
+   The rs1 and rs2 fields from the instruction select the two registers to be read, while rd selects the destination         register for a write.
    
-   Register x0 is permanently fixed to a value of zero. Any attempt to write to x0 is ignored, and any read from x0 returns zero.
+   Register x0 is permanently fixed to a value of zero. Any attempt to write to x0 is ignored, and any read from x0          returns zero.
    
-   Writes occur on the rising edge of the clock when reg_write is enabled and rd is not zero. The two read outputs are combinational, meaning the selected register values are available immediately when rs1 or rs2 changes.
+   Writes occur on the rising edge of the clock when reg_write is enabled and rd is not zero. The two read outputs are       combinational, meaning the selected register values are available immediately when rs1 or rs2 changes.
 
 ### Program Counter
 
-   The program counter stores the adress of the instriction the CPU is currently excicuting.
+   The program counter stores the address of the instruction the CPU is currently executing.
    On every rising edge of the clock it loads the value of the next pc value
    In a normal operation the value of the next pc will be pc + 4 however in some special cases this changes
    These special cases are handeled by the pc_next module
@@ -73,13 +91,35 @@
    The program counter -> next or pc_next module is used to determine what instruction the program will read next
    The program counter will normally be updated by 4
    However, there are some special cases that need to be handeled
-   The program uses two flags, branch_successful and jump, i feither of these are 1 then we have a special case and must change the program counter accordingly
+   The program uses two flags, branch_successful and jump, if either of these are 1 then we have a special case and must    change the program counter accordingly
    if branch_successful : pc = pc + imm
    if jump  : pc = pc + imm
    
 ### Instruction Memory
+
+The instruction memory stores the machine code to be executed by the CPU.
+It contains 256 words of 32 bit memory (may be altered to meet requirements when being put into silicone) 
+The program counter provides the address of which code is to be read within the instruction memory
+
 ### Immediate Generator
+
+The immediate generator extracts and reconstructs immediate values from within the instruction.
+Different types of instructions store memory in different places and so the instruction memory determines the type of instruction, where the immediate values are stores and then combines them into one immediate.
+This immediate is then used in ALU operations, memory addressing, branches, and jumps.
+
 ### Decoder
+
+The decoder interoperates the instruction using "opcode", "func3" and "func7"
+It generates the control signals used by the rest of the processor, including:
+- reg_write
+- mem_write
+- val_sec
+- branch
+- jump
+- result_src
+- alu_op
+  These signals control how the instructions move through the datapath
+
 ### Branch Comparator
 ### Data Memory
 ### CPU Core
