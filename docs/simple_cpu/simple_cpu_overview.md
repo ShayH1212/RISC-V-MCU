@@ -118,8 +118,26 @@ It generates the control signals used by the rest of the processor, including:
 - jump
 - result_src
 - alu_op
+  
   These signals control how the instructions move through the datapath
 
 ### Branch Comparator
+
+This compares reg_read 1 and reg_read2 for conditional branche instructions and then it uses "func3"
+
+This allows for the following commands:
+- BEQ
+- BNE
+- BLT
+- BGE
+- BLTU
+- BGEU
+
 ### Data Memory
+The data memory stores values used by load and store instructions.
+It contains 512 words of 32-bit memory.
+Reads are combinational and writes occur on the rising clock edge when mem_write is enabled
+
 ### CPU Core
+
+The cpu_core module connects all of the processor modules into the complete single-cycle datapath.
