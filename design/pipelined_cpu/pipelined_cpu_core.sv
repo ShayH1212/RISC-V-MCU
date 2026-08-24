@@ -36,6 +36,7 @@ logic mem_write_decode;
 logic val_sec_decode;
 logic branch_decode;
 logic jump_decode;
+logic jalr_decode;
 logic [1:0] result_src_decode;
 logic [3:0] alu_op_decode;
 
@@ -60,6 +61,7 @@ logic mem_write_execute;
 logic [1:0] result_src_execute;
 logic branch_execute;
 logic jump_execute;
+logic jalr_execute;
 
  // EXICUTE
 logic [31:0] alu_b_execute;
@@ -82,6 +84,16 @@ logic [1:0] result_src_memory;
 logic [31:0] read_data_memory;
 logic [31:0] writeback_value_memory;
 
+// HAZARDS
+logic stall;
+logic flush;
+logic [1:0] forward_a;
+logic [1:0] forward_b;
+logic [31:0] forwarded_a_execute;
+logic [31:0] forwarded_b_execute;
+
+
+
 
 
 /*<><<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -97,7 +109,8 @@ prog_count program_counter (
     .clk(clk),  
     .reset(reset),
     .pc_next(pc_next_fetch),
-    .pc(pc_fetch)
+    .pc(pc_fetch),
+    .enable(!stall)
 );
 
 // Instantiate instruction memory
@@ -116,7 +129,9 @@ fetch_decode_register fetch_decode_reg (
     .pc_in(pc_fetch),
     .instruction_in(instruction_fetch),
     .pc_out(pc_decode),
-    .instruction_out(instruction_decode)
+    .instruction_out(instruction_decode),
+    .enable(!stall),
+    .flush(flush)
 );
 
 
@@ -143,7 +158,8 @@ decoder control_unit (
     .branch(branch_decode),
     .jump(jump_decode),
     .result_src(result_src_decode),
-    .alu_op(alu_op_decode)
+    .alu_op(alu_op_decode),
+    .jalr(jalr_decode)
 );
 
 // instiantiate the immediate generator
@@ -193,6 +209,7 @@ decode_execute_reg decode_execute_pipeline_reg (
     .result_src_in(result_src_decode),
     .branch_in(branch_decode),
     .jump_in(jump_decode),
+    .jalr_in(jalr_decode),
     .pc_out(pc_execute),
     .read_reg1_out(read_reg1_execute),
     .read_reg2_out(read_reg2_execute),
@@ -207,7 +224,9 @@ decode_execute_reg decode_execute_pipeline_reg (
     .mem_write_out(mem_write_execute),
     .result_src_out(result_src_execute),
     .branch_out(branch_execute),
-    .jump_out(jump_execute)
+    .jump_out(jump_execute),
+    .jalr_out(jalr_execute),
+    .flush(stall || flush)
 );
 
 
@@ -220,14 +239,14 @@ always_comb begin
     if (val_sec_execute)
         alu_b_execute = immediate_execute;
     else
-        alu_b_execute = read_reg2_execute;
+        alu_b_execute = forwarded_b_execute;
 
 end
 
 
 //instiantiate alu
 alu alu_unit (
-    .a(read_reg1_execute),
+    .a(forwarded_a_execute),
     .b(alu_b_execute),
     .alu_opp(alu_op_execute),
     .result(alu_result_execute),
@@ -236,8 +255,8 @@ alu alu_unit (
 
 // Instiantiate branch comparitor
 comp branch_comparator (
-    .a(read_reg1_execute),
-    .b(read_reg2_execute),
+    .a(forwarded_a_execute),
+    .b(forwarded_b_execute),
     .funct3(funct3_execute),
     .branch(branch_execute),
     .branch_successful(branch_successful_execute)
@@ -260,9 +279,19 @@ always_comb begin
     if (branch_successful_execute)
         pc_next_fetch = branch_target_execute;
 
-    // JAL
-    if (jump_execute)
-        pc_next_fetch = branch_target_execute;
+
+    // Jump
+    if (jump_execute) begin
+        // JALR
+        if (jalr_execute) begin
+            pc_next_fetch = (alu_result_execute & 32'hFFFF_FFFE);
+        end
+        // JAL
+        else begin
+            pc_next_fetch = branch_target_execute;
+        end
+
+    end        
 end
 
 /***************************
@@ -274,7 +303,7 @@ end
 
 execute_memory_reg execute_memory_pipeline_reg (
     .alu_result_in(alu_result_execute),
-    .read_reg2_in(read_reg2_execute),
+    .read_reg2_in(forwarded_b_execute),
     .pc_add4_in(pc_add4_execute),
     .rd_in(rd_execute),
     .mem_write_in(mem_write_execute),
@@ -331,8 +360,83 @@ memory_writeback_reg memory_writeback_pipeline_reg (
     .writeback_value_out(writeback_value_writeback),
     .rd_out(rd_writeback),
     .reg_write_out(reg_write_writeback)
-
 );
+
+
+/**********************
+ HAZARD DETECTION UNIT
+**********************/
+
+hazard_detection_unit hazard_unit (
+    .rs1_decode(rs1_decode),
+    .rs2_decode(rs2_decode),
+    .rd_execute(rd_execute),
+    .result_src_execute(result_src_execute),
+    .stall(stall)
+);
+
+
+
+/*****************
+  FORWARDING_UNIT
+******************/
+
+forwarding_unit forward_unit (
+    .rs1_execute(rs1_execute),
+    .rs2_execute(rs2_execute),
+    .rd_memory(rd_memory),
+    .result_src_memory(result_src_memory),
+    .reg_write_memory(reg_write_memory),
+    .rd_writeback(rd_writeback),
+    .reg_write_writeback(reg_write_writeback),
+    .forward_a(forward_a),
+    .forward_b(forward_b)
+);
+
+
+
+/***************************
+ EXTRA MUX'S FOR FORWARDING
+***************************/
+
+always_comb begin
+    if(forward_a == 2'b10) begin
+        forwarded_a_execute = writeback_value_memory;
+    end
+    else if (forward_a == 2'b01) begin
+        forwarded_a_execute = writeback_value_writeback;
+    end
+    else begin
+        forwarded_a_execute = read_reg1_execute;
+    end
+end
+
+always_comb begin
+    if(forward_b == 2'b10) begin
+        forwarded_b_execute = writeback_value_memory;
+    end
+    else if (forward_b == 2'b01) begin
+        forwarded_b_execute = writeback_value_writeback;
+    end
+    else begin
+        forwarded_b_execute = read_reg2_execute;
+    end
+end
+
+
+/***************************
+ BRANCH/ JUMP FLUSH CONTROL
+***************************/
+
+always_comb begin
+    if (branch_successful_execute || jump_execute) begin
+        flush = 1'b1;
+    end
+    else begin
+        flush = 1'b0;
+    end
+end
+
 
 
 endmodule

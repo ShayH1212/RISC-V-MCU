@@ -19,6 +19,7 @@ mem_write
 result_src
 branch
 jump
+jalr
 */
 
 module decode_execute_reg (
@@ -41,9 +42,11 @@ module decode_execute_reg (
     input logic [1:0] result_src_in,
     input logic branch_in,
     input logic jump_in,
+    input logic jalr_in,
 
     input logic clk,
     input logic reset,
+    input logic flush,
 
     // Data outputs
     output logic [31:0] pc_out,
@@ -63,7 +66,9 @@ module decode_execute_reg (
     output logic mem_write_out,
     output logic [1:0] result_src_out,
     output logic branch_out,
-    output logic jump_out
+    output logic jump_out,
+    output logic jalr_out
+
 );
 
 always_ff @(posedge clk) begin
@@ -85,6 +90,26 @@ always_ff @(posedge clk) begin
         result_src_out <= 2'b0;
         branch_out <= 1'b0;
         jump_out <= 1'b0;
+        jalr_out <= 1'b0;
+        end
+
+        else if (flush) begin // This allows a cycle of no operation
+        pc_out <= 32'b0;
+        read_reg1_out <= 32'b0;
+        read_reg2_out <= 32'b0;
+        immediate_out <= 32'b0;
+        funct3_out <= 3'b0;
+        rs1_out <= 5'b0;
+        rs2_out <= 5'b0;
+        rd_out <= 5'b0;
+        alu_op_out <= 4'b0;
+        val_sec_out <= 1'b0;
+        reg_write_out <= 1'b0;
+        mem_write_out <= 1'b0;
+        result_src_out <= 2'b0;
+        branch_out <= 1'b0;
+        jump_out <= 1'b0;
+        jalr_out <= 1'b0;        
         end
 
         else begin // if reset is off store all values
@@ -103,6 +128,7 @@ always_ff @(posedge clk) begin
         result_src_out <= result_src_in;
         branch_out <= branch_in;
         jump_out <= jump_in;
+        jalr_out <= jalr_in;
         end
 end
 

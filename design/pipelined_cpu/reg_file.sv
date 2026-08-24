@@ -26,25 +26,40 @@ always_ff @(posedge clk) begin // everything done on rising edge
 
 end
 
+/* 
+NOTE: A failed test revealed a same cycle read/write hazard
+
+If a reg is being written into in WB in the same cycle that 
+it is being read in ID the reg might return an old value
+
+We use the write_reg directly to get the newest value
+*/
 
 always_comb begin
-
-    if (rs1 == 5'b00000) // read the value in rs1 unless it equals zero
-        read_reg1 = 32'b0;
-    else
+        if (rs1 == 5'b00000) begin// read the value in rs1 unless it equals zero
+            read_reg1 = 32'b0;
+    end    
+        else if (write_enable && (rd != 5'b00000) && (rd == rs1)) begin
+            read_reg1 = write_reg;
+    end
+    else begin
         read_reg1 = registers[rs1];
-
-end
+    end
+end    
 
 
 always_comb begin
 
-    if (rs2 == 5'b00000) // read the value in rs2 unless it equals zero
+    if (rs2 == 5'b00000) begin // read the value in rs1 unless it equals zero
         read_reg2 = 32'b0;
-    else
+    end    
+        else if (write_enable && (rd != 5'b00000) && (rd == rs2)) begin
+            read_reg2 = write_reg;
+    end
+    else begin
         read_reg2 = registers[rs2];
-
-end
+    end
+end    
 
 
 endmodule

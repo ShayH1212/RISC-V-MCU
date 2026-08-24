@@ -37,6 +37,7 @@ module decoder (
     output logic val_sec,
     output logic branch,
     output logic jump,
+    output logic jalr,
     output logic [1:0] result_src,
     output logic [3:0] alu_op
 );
@@ -62,6 +63,7 @@ module decoder (
         val_sec = 1'b0;
         branch = 1'b0;
         jump = 1'b0;
+        jalr = 1'b0;
         result_src = 2'b00;
         alu_op = ALU_ADD;
 
@@ -191,8 +193,8 @@ module decoder (
         7'b0100011: begin
 
             mem_write = 1'b1;
-            val_sec   = 1'b1;
-            alu_op    = ALU_ADD; // add function is used when storing
+            val_sec  = 1'b1;
+            alu_op = ALU_ADD; // add function is used when storing
 
         end
 
@@ -200,7 +202,7 @@ module decoder (
         // BRANCH
         7'b1100011: begin
 
-            branch  = 1'b1;
+            branch = 1'b1;
             val_sec = 1'b0;
             alu_op  = ALU_SUB; // sub function is used when branching
 
@@ -218,16 +220,37 @@ module decoder (
 
         end
 
+        // JALR
+        7'b1100111: begin
+
+        if (funct3 == 3'b000) begin
+
+            reg_write  = 1'b1;
+            jump = 1'b1;
+            jalr = 1'b1;
+
+            // ALU calculates rs1 + immediate
+            val_sec = 1'b1;
+            alu_op = ALU_ADD;
+
+            // rd receives PC + 4
+            result_src = 2'b10;
+
+    end
+
+end
+
 
         default: begin
 
-            reg_write  = 1'b0;
-            mem_write  = 1'b0;
-            val_sec    = 1'b0;
-            branch     = 1'b0;
-            jump       = 1'b0;
+            reg_write = 1'b0;
+            mem_write = 1'b0;
+            val_sec = 1'b0;
+            branch = 1'b0;
+            jump = 1'b0;
+            jalr = 1'b0;
             result_src = 2'b00;
-            alu_op     = ALU_ADD;
+            alu_op = ALU_ADD;
 
         end
 

@@ -6,6 +6,8 @@ This is necessary as the instructions are still necessary even when we need to f
 module fetch_decode_register (
     input logic clk,
     input logic reset,
+    input logic enable,
+    input logic flush,
     input logic [31:0] pc_in,
     input logic [31:0] instruction_in,
     output logic [31:0] pc_out,
@@ -17,7 +19,12 @@ always_ff @(posedge clk) begin
         pc_out <= 32'b0;
         instruction_out <= 32'b0;
     end
-    else begin // if not then we save the fetch instruction
+    else if(flush) begin
+        pc_out <= 32'b0;
+        instruction_out <= 32'b0;
+    end
+    else if(enable) begin // if not then we save the fetch instruction
+    // The enable added in allows us to stall
         pc_out <= pc_in;
         instruction_out <= instruction_in;
     end
