@@ -6,20 +6,43 @@ integer pass_counter;
 integer fail_counter;
 integer stall_counter;
 localparam logic [31:0] no_op = 32'h00000013; // this makes it so you can esaily do a no operation  
+logic data_write_enable;
+logic [31:0] data_address;
+logic [31:0] data_write_data;
+logic [31:0] data_read_data;
+logic [31:0] instruction_address;
+logic [31:0] instruction_data;
 
 
+pipelined_cpu_core cpu_design (
+    .clk(clk),
+    .reset(reset),
+    .data_write_enable(data_write_enable),
+    .data_address(data_address),
+    .data_write_data(data_write_data),
+    .data_read_data(data_read_data),
+    .instruction_address(instruction_address),
+    .instruction_data(instruction_data)
+);
+
+instruction_mem instruction_memory (
+    .address(instruction_address),
+    .instruction(instruction_data)
+);
+
+data_mem data_memory (
+    .clk(clk),
+    .mem_write(data_write_enable),
+    .address(data_address),
+    .write_data(data_write_data),
+    .read_data(data_read_data)
+);
 
 initial begin
     clk = 1'b0;
     pass_counter = 0;
     fail_counter = 0;
 end
-
-
-pipelined_cpu_core cpu_design (
-    .clk(clk),
-    .reset(reset)
-);
 
 
 always begin
@@ -60,11 +83,11 @@ begin
     end
     // Fill the instruction memory with no_op instructions
     for(i = 0; i < 256; i = i + 1)begin
-        cpu_design.instruction_memory.memory[i] = no_op;
+        instruction_memory.memory[i] = no_op;
     end
     //Clear data memory
     for(i = 0; i < 512; i = i + 1) begin
-        cpu_design.data_memory.memory[i] = 32'b0;
+        data_memory.memory[i] = 32'b0;
     end
 end
 
@@ -121,12 +144,12 @@ task automatic memory_checker(
 );
 
 begin
-    if (cpu_design.data_memory.memory[memory_location] === expected) begin
+    if (data_memory.memory[memory_location] === expected) begin
         $display("PASS: memory[%0d] = %0d", memory_location, expected);
         pass_counter = pass_counter + 1;
     end
     else begin
-        $display("FAIL: memory[%0d] expected %0d, got %0d", memory_location,  expected, cpu_design.data_memory.memory[memory_location]);
+        $display("FAIL: memory[%0d] expected %0d, got %0d", memory_location,  expected, data_memory.memory[memory_location]);
         fail_counter = fail_counter + 1;
     end
 end
@@ -173,8 +196,8 @@ initial begin
 
     test_setup();
 
-    cpu_design.instruction_memory.memory[0] = 32'h00500093;
-    cpu_design.instruction_memory.memory[1] = 32'h00108133;
+    instruction_memory.memory[0] = 32'h00500093;
+    instruction_memory.memory[1] = 32'h00108133;
 
     run_cpu(10);
     reg_checker(1, 32'd5);
@@ -196,8 +219,8 @@ initial begin
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h00008133;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h00008133;
 
 run_cpu(10);
 reg_checker(1, 32'd5);
@@ -219,8 +242,8 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h00100133;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h00100133;
 
 run_cpu(10);
 reg_checker(1, 32'd5);
@@ -244,9 +267,9 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.data_memory.memory[0] = 32'd21;
-cpu_design.instruction_memory.memory[0] = 32'h00002083;
-cpu_design.instruction_memory.memory[1] = 32'h00008133;
+data_memory.memory[0] = 32'd21;
+instruction_memory.memory[0] = 32'h00002083;
+instruction_memory.memory[1] = 32'h00008133;
 
 run_cpu(10);
 reg_checker(1, 32'd21);
@@ -270,9 +293,9 @@ stall_checker(1);
 
 test_setup();
 
-cpu_design.data_memory.memory[0] = 32'd21;
-cpu_design.instruction_memory.memory[0] = 32'h00002083;
-cpu_design.instruction_memory.memory[1] = 32'h00100133;
+data_memory.memory[0] = 32'd21;
+instruction_memory.memory[0] = 32'h00002083;
+instruction_memory.memory[1] = 32'h00100133;
 
 run_cpu(10);
 reg_checker(1, 32'd21);
@@ -294,8 +317,8 @@ stall_checker(1);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00A00013;
-cpu_design.instruction_memory.memory[1] = 32'h000000B3;
+instruction_memory.memory[0] = 32'h00A00013;
+instruction_memory.memory[1] = 32'h000000B3;
 
 run_cpu(10);
 reg_checker(0, 32'd0);
@@ -318,9 +341,9 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h01400313;
-cpu_design.instruction_memory.memory[2] = 32'h00108133;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h01400313;
+instruction_memory.memory[2] = 32'h00108133;
 
 run_cpu(10);
 reg_checker(1, 32'd5);
@@ -344,9 +367,9 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h00308093;
-cpu_design.instruction_memory.memory[2] = 32'h00008133;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h00308093;
+instruction_memory.memory[2] = 32'h00008133;
 
 run_cpu(10);
 reg_checker(1, 32'd8);
@@ -371,10 +394,10 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h00308113;
-cpu_design.instruction_memory.memory[2] = 32'h00410193;
-cpu_design.instruction_memory.memory[3] = 32'h00518213;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h00308113;
+instruction_memory.memory[2] = 32'h00410193;
+instruction_memory.memory[3] = 32'h00518213;
 
 run_cpu(20);
 reg_checker(1, 32'd5);
@@ -401,11 +424,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.data_memory.memory[0] = 32'd21;
-cpu_design.instruction_memory.memory[0] = 32'h00002083;
-cpu_design.instruction_memory.memory[1] = no_op;
-cpu_design.instruction_memory.memory[2] = no_op;
-cpu_design.instruction_memory.memory[3] = 32'h00108133;
+data_memory.memory[0] = 32'd21;
+instruction_memory.memory[0] = 32'h00002083;
+instruction_memory.memory[1] = no_op;
+instruction_memory.memory[2] = no_op;
+instruction_memory.memory[3] = 32'h00108133;
 
 run_cpu(20);
 
@@ -430,9 +453,9 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.data_memory.memory[0] = 32'd21;
-cpu_design.instruction_memory.memory[0] = 32'h00002083;
-cpu_design.instruction_memory.memory[1] = 32'h00700113;
+data_memory.memory[0] = 32'd21;
+instruction_memory.memory[0] = 32'h00002083;
+instruction_memory.memory[1] = 32'h00700113;
 
 run_cpu(10);
 reg_checker(1, 32'd21);
@@ -456,11 +479,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h01900093;
-cpu_design.instruction_memory.memory[1] = 32'h00102023;
-cpu_design.instruction_memory.memory[2] = no_op;
-cpu_design.instruction_memory.memory[3] = no_op;
-cpu_design.instruction_memory.memory[4] = 32'h00002103;
+instruction_memory.memory[0] = 32'h01900093;
+instruction_memory.memory[1] = 32'h00102023;
+instruction_memory.memory[2] = no_op;
+instruction_memory.memory[3] = no_op;
+instruction_memory.memory[4] = 32'h00002103;
 
 run_cpu(20);
 memory_checker(0, 32'd25);
@@ -506,24 +529,24 @@ stall_checker(0);
 test_setup();
 
 // Set up x1 = 8 and x2 = 3
-cpu_design.instruction_memory.memory[0]  = 32'h00800093; // addi x1, x0, 8
-cpu_design.instruction_memory.memory[1]  = 32'h00300113; // addi x2, x0, 3
+instruction_memory.memory[0]  = 32'h00800093; // addi x1, x0, 8
+instruction_memory.memory[1]  = 32'h00300113; // addi x2, x0, 3
 // Basic arithmetic
-cpu_design.instruction_memory.memory[2]  = 32'h002081B3; // add x3, x1, x2
-cpu_design.instruction_memory.memory[3]  = 32'h40208233; // sub x4, x1, x2
+instruction_memory.memory[2]  = 32'h002081B3; // add x3, x1, x2
+instruction_memory.memory[3]  = 32'h40208233; // sub x4, x1, x2
 // Bitwise operations
-cpu_design.instruction_memory.memory[4]  = 32'h0020F2B3; // and x5, x1, x2
-cpu_design.instruction_memory.memory[5]  = 32'h0020E333; // or x6, x1, x2
-cpu_design.instruction_memory.memory[6]  = 32'h0020C3B3; // xor x7, x1, x2
+instruction_memory.memory[4]  = 32'h0020F2B3; // and x5, x1, x2
+instruction_memory.memory[5]  = 32'h0020E333; // or x6, x1, x2
+instruction_memory.memory[6]  = 32'h0020C3B3; // xor x7, x1, x2
 // Shift operations
-cpu_design.instruction_memory.memory[7]  = 32'h00209433; // sll x8, x1, x2
-cpu_design.instruction_memory.memory[8]  = 32'h0020D4B3; // srl x9, x1, x2
+instruction_memory.memory[7]  = 32'h00209433; // sll x8, x1, x2
+instruction_memory.memory[8]  = 32'h0020D4B3; // srl x9, x1, x2
 // Negative value for signed tests
-cpu_design.instruction_memory.memory[9]  = 32'hFF800513; // addi x10, x0, -8
+instruction_memory.memory[9]  = 32'hFF800513; // addi x10, x0, -8
 // Signed shift and comparisons
-cpu_design.instruction_memory.memory[10] = 32'h402555B3; // sra x11, x10, x2
-cpu_design.instruction_memory.memory[11] = 32'h00252633; // slt x12, x10, x2
-cpu_design.instruction_memory.memory[12] = 32'h002536B3; // sltu x13, x10, x2
+instruction_memory.memory[10] = 32'h402555B3; // sra x11, x10, x2
+instruction_memory.memory[11] = 32'h00252633; // slt x12, x10, x2
+instruction_memory.memory[12] = 32'h002536B3; // sltu x13, x10, x2
 
 run_cpu(30);
 reg_checker(1,  32'd8);
@@ -559,9 +582,9 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
-cpu_design.instruction_memory.memory[1] = 32'h00008463; // beq  x1, x0, +8
-cpu_design.instruction_memory.memory[2] = 32'h00700113; // addi x2, x0, 7
+instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
+instruction_memory.memory[1] = 32'h00008463; // beq  x1, x0, +8
+instruction_memory.memory[2] = 32'h00700113; // addi x2, x0, 7
 
 run_cpu(20);
 reg_checker(1, 32'd5);
@@ -590,11 +613,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
-cpu_design.instruction_memory.memory[1] = 32'h00108663; // beq x1, x1, +12
-cpu_design.instruction_memory.memory[2] = 32'h06300193; // addi x3, x0, 99
-cpu_design.instruction_memory.memory[3] = 32'h05800213; // addi x4, x0, 88
-cpu_design.instruction_memory.memory[4] = 32'h00700293; // addi x5, x0, 7
+instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
+instruction_memory.memory[1] = 32'h00108663; // beq x1, x1, +12
+instruction_memory.memory[2] = 32'h06300193; // addi x3, x0, 99
+instruction_memory.memory[3] = 32'h05800213; // addi x4, x0, 88
+instruction_memory.memory[4] = 32'h00700293; // addi x5, x0, 7
 
 run_cpu(20);
 reg_checker(1, 32'd5);
@@ -626,12 +649,12 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
-cpu_design.instruction_memory.memory[1] = 32'h00300113; // addi x2, x0, 3
-cpu_design.instruction_memory.memory[2] = 32'h00209663; // bne x1, x2, +12
-cpu_design.instruction_memory.memory[3] = 32'h06300193; // addi x3, x0, 99
-cpu_design.instruction_memory.memory[4] = 32'h05800213; // addi x4, x0, 88
-cpu_design.instruction_memory.memory[5] = 32'h00700293; // addi x5, x0, 7
+instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
+instruction_memory.memory[1] = 32'h00300113; // addi x2, x0, 3
+instruction_memory.memory[2] = 32'h00209663; // bne x1, x2, +12
+instruction_memory.memory[3] = 32'h06300193; // addi x3, x0, 99
+instruction_memory.memory[4] = 32'h05800213; // addi x4, x0, 88
+instruction_memory.memory[5] = 32'h00700293; // addi x5, x0, 7
 
 run_cpu(20);
 reg_checker(1, 32'd5);
@@ -665,12 +688,12 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'hFFB00093; // addi x1, x0, -5
-cpu_design.instruction_memory.memory[1] = 32'h00300113; // addi x2, x0, 3
-cpu_design.instruction_memory.memory[2] = 32'h0020C663; // blt x1, x2, +12
-cpu_design.instruction_memory.memory[3] = 32'h06300193; // addi x3, x0, 99
-cpu_design.instruction_memory.memory[4] = 32'h05800213; // addi x4, x0, 88
-cpu_design.instruction_memory.memory[5] = 32'h00700293; // addi x5, x0, 7
+instruction_memory.memory[0] = 32'hFFB00093; // addi x1, x0, -5
+instruction_memory.memory[1] = 32'h00300113; // addi x2, x0, 3
+instruction_memory.memory[2] = 32'h0020C663; // blt x1, x2, +12
+instruction_memory.memory[3] = 32'h06300193; // addi x3, x0, 99
+instruction_memory.memory[4] = 32'h05800213; // addi x4, x0, 88
+instruction_memory.memory[5] = 32'h00700293; // addi x5, x0, 7
 
 run_cpu(20);
 reg_checker(1, -32'sd5);
@@ -703,12 +726,12 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
-cpu_design.instruction_memory.memory[1] = 32'h00300113; // addi x2, x0, 3
-cpu_design.instruction_memory.memory[2] = 32'h0020D663; // bge x1, x2, +12
-cpu_design.instruction_memory.memory[3] = 32'h06300193; // addi x3, x0, 99
-cpu_design.instruction_memory.memory[4] = 32'h05800213; // addi x4, x0, 88
-cpu_design.instruction_memory.memory[5] = 32'h00700293; // addi x5, x0, 7
+instruction_memory.memory[0] = 32'h00500093; // addi x1, x0, 5
+instruction_memory.memory[1] = 32'h00300113; // addi x2, x0, 3
+instruction_memory.memory[2] = 32'h0020D663; // bge x1, x2, +12
+instruction_memory.memory[3] = 32'h06300193; // addi x3, x0, 99
+instruction_memory.memory[4] = 32'h05800213; // addi x4, x0, 88
+instruction_memory.memory[5] = 32'h00700293; // addi x5, x0, 7
 
 run_cpu(20);
 reg_checker(1, 32'd5);
@@ -741,12 +764,12 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00300093;
-cpu_design.instruction_memory.memory[1] = 32'hFFB00113;
-cpu_design.instruction_memory.memory[2] = 32'h0020E663;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h05800213;
-cpu_design.instruction_memory.memory[5] = 32'h00700293;
+instruction_memory.memory[0] = 32'h00300093;
+instruction_memory.memory[1] = 32'hFFB00113;
+instruction_memory.memory[2] = 32'h0020E663;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h05800213;
+instruction_memory.memory[5] = 32'h00700293;
 
 run_cpu(20);
 reg_checker(1, 32'd3);
@@ -780,12 +803,12 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'hFFB00093;
-cpu_design.instruction_memory.memory[1] = 32'h00300113;
-cpu_design.instruction_memory.memory[2] = 32'h0020F663;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h05800213;
-cpu_design.instruction_memory.memory[5] = 32'h00700293;
+instruction_memory.memory[0] = 32'hFFB00093;
+instruction_memory.memory[1] = 32'h00300113;
+instruction_memory.memory[2] = 32'h0020F663;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h05800213;
+instruction_memory.memory[5] = 32'h00700293;
 
 run_cpu(20);
 reg_checker(1, -32'sd5);
@@ -816,11 +839,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h00300113;
-cpu_design.instruction_memory.memory[2] = 32'h00208463;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h00700213;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h00300113;
+instruction_memory.memory[2] = 32'h00208463;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h00700213;
 
 run_cpu(20);
 
@@ -851,11 +874,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h00500113;
-cpu_design.instruction_memory.memory[2] = 32'h00209463;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h00700213;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h00500113;
+instruction_memory.memory[2] = 32'h00209463;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h00700213;
 
 run_cpu(20);
 
@@ -886,11 +909,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00500093;
-cpu_design.instruction_memory.memory[1] = 32'h00300113;
-cpu_design.instruction_memory.memory[2] = 32'h0020C463;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h00700213;
+instruction_memory.memory[0] = 32'h00500093;
+instruction_memory.memory[1] = 32'h00300113;
+instruction_memory.memory[2] = 32'h0020C463;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h00700213;
 
 run_cpu(20);
 
@@ -921,11 +944,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'hFFB00093;
-cpu_design.instruction_memory.memory[1] = 32'h00300113;
-cpu_design.instruction_memory.memory[2] = 32'h0020D463;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h00700213;
+instruction_memory.memory[0] = 32'hFFB00093;
+instruction_memory.memory[1] = 32'h00300113;
+instruction_memory.memory[2] = 32'h0020D463;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h00700213;
 
 run_cpu(20);
 
@@ -955,11 +978,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'hFFB00093;
-cpu_design.instruction_memory.memory[1] = 32'h00300113;
-cpu_design.instruction_memory.memory[2] = 32'h0020E463;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h00700213;
+instruction_memory.memory[0] = 32'hFFB00093;
+instruction_memory.memory[1] = 32'h00300113;
+instruction_memory.memory[2] = 32'h0020E463;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h00700213;
 
 run_cpu(20);
 
@@ -990,11 +1013,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00300093;
-cpu_design.instruction_memory.memory[1] = 32'hFFB00113;
-cpu_design.instruction_memory.memory[2] = 32'h0020F463;
-cpu_design.instruction_memory.memory[3] = 32'h06300193;
-cpu_design.instruction_memory.memory[4] = 32'h00700213;
+instruction_memory.memory[0] = 32'h00300093;
+instruction_memory.memory[1] = 32'hFFB00113;
+instruction_memory.memory[2] = 32'h0020F463;
+instruction_memory.memory[3] = 32'h06300193;
+instruction_memory.memory[4] = 32'h00700213;
 
 run_cpu(20);
 
@@ -1025,10 +1048,10 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00C000EF;
-cpu_design.instruction_memory.memory[1] = 32'h06300193;
-cpu_design.instruction_memory.memory[2] = 32'h05800213;
-cpu_design.instruction_memory.memory[3] = 32'h00700293;
+instruction_memory.memory[0] = 32'h00C000EF;
+instruction_memory.memory[1] = 32'h06300193;
+instruction_memory.memory[2] = 32'h05800213;
+instruction_memory.memory[3] = 32'h00700293;
 
 run_cpu(20);
 
@@ -1059,10 +1082,10 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h00C0006F;
-cpu_design.instruction_memory.memory[1] = 32'h06300193;
-cpu_design.instruction_memory.memory[2] = 32'h05800213;
-cpu_design.instruction_memory.memory[3] = 32'h00700293;
+instruction_memory.memory[0] = 32'h00C0006F;
+instruction_memory.memory[1] = 32'h06300193;
+instruction_memory.memory[2] = 32'h05800213;
+instruction_memory.memory[3] = 32'h00700293;
 
 run_cpu(20);
 
@@ -1099,14 +1122,14 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h01C00093;
-cpu_design.instruction_memory.memory[1] = no_op;
-cpu_design.instruction_memory.memory[2] = no_op;
-cpu_design.instruction_memory.memory[3] = no_op;
-cpu_design.instruction_memory.memory[4] = 32'h00008167;
-cpu_design.instruction_memory.memory[5] = 32'h06300193;
-cpu_design.instruction_memory.memory[6] = 32'h05800213;
-cpu_design.instruction_memory.memory[7] = 32'h00700293;
+instruction_memory.memory[0] = 32'h01C00093;
+instruction_memory.memory[1] = no_op;
+instruction_memory.memory[2] = no_op;
+instruction_memory.memory[3] = no_op;
+instruction_memory.memory[4] = 32'h00008167;
+instruction_memory.memory[5] = 32'h06300193;
+instruction_memory.memory[6] = 32'h05800213;
+instruction_memory.memory[7] = 32'h00700293;
 
 run_cpu(30);
 
@@ -1147,14 +1170,14 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h01500093;
-cpu_design.instruction_memory.memory[1] = no_op;
-cpu_design.instruction_memory.memory[2] = no_op;
-cpu_design.instruction_memory.memory[3] = no_op;
-cpu_design.instruction_memory.memory[4] = 32'h00808167;
-cpu_design.instruction_memory.memory[5] = 32'h06300193;
-cpu_design.instruction_memory.memory[6] = 32'h05800213;
-cpu_design.instruction_memory.memory[7] = 32'h00700293;
+instruction_memory.memory[0] = 32'h01500093;
+instruction_memory.memory[1] = no_op;
+instruction_memory.memory[2] = no_op;
+instruction_memory.memory[3] = no_op;
+instruction_memory.memory[4] = 32'h00808167;
+instruction_memory.memory[5] = 32'h06300193;
+instruction_memory.memory[6] = 32'h05800213;
+instruction_memory.memory[7] = 32'h00700293;
 
 run_cpu(30);
 
@@ -1187,11 +1210,11 @@ stall_checker(0);
 
 test_setup();
 
-cpu_design.instruction_memory.memory[0] = 32'h01000093; // addi x1, x0, 16
-cpu_design.instruction_memory.memory[1] = 32'h00008167; // jalr x2, x1, 0
-cpu_design.instruction_memory.memory[2] = 32'h06300193; // wrong path
-cpu_design.instruction_memory.memory[3] = 32'h05800213; // wrong path
-cpu_design.instruction_memory.memory[4] = 32'h00700293; // target
+instruction_memory.memory[0] = 32'h01000093; // addi x1, x0, 16
+instruction_memory.memory[1] = 32'h00008167; // jalr x2, x1, 0
+instruction_memory.memory[2] = 32'h06300193; // wrong path
+instruction_memory.memory[3] = 32'h05800213; // wrong path
+instruction_memory.memory[4] = 32'h00700293; // target
 
 run_cpu(20);
 reg_checker(1, 32'd16);
@@ -1202,13 +1225,61 @@ reg_checker(5, 32'd7);
 stall_checker(0);
 
 
+
+/*<><><><><><><><><><><><><><><><><><><><><><><>
+                TEST 32: LUI
+
+    lui x1, 0x12345
+
+    Expected:
+    x1 = 0x12345000
+    stalls = 0
+<><><><><><><><><><><><><><><><><><><><><><><>*/
+
+test_setup();
+
+instruction_memory.memory[0] = 32'h123450B7;
+
+run_cpu(10);
+
+reg_checker(1, 32'h12345000);
+stall_checker(0);
+
+
+
+/*<><><><><><><><><><><><><><><><><><><><><><><>
+                TEST 33: AUIPC
+
+    no_op
+    auipc x2, 0x1
+
+    AUIPC is located at PC = 4
+
+    Expected:
+    x2 = 0x00001004
+    stalls = 0
+<><><><><><><><><><><><><><><><><><><><><><><>*/
+
+test_setup();
+
+instruction_memory.memory[0] = no_op;
+instruction_memory.memory[1] = 32'h00001117;
+
+run_cpu(10);
+
+reg_checker(2, 32'h00001004);
+stall_checker(0);
+
+
+
+
+
 $display("Tests Passed: %0d", pass_counter);
 $display("Tests Failed: %0d", fail_counter);
 $finish;
 
 
 end
-
 
 
 endmodule

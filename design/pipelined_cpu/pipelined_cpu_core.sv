@@ -5,7 +5,18 @@ Each arrow will contain a pipeline register
 */
 module pipelined_cpu_core (
     input logic clk,
-    input logic reset
+    input logic reset,
+
+    // Data Memory
+    input  logic [31:0] data_read_data,
+    output logic [31:0] data_write_data,
+    output logic data_write_enable,
+    output logic [31:0] data_address,
+
+    // Instruction Memory
+    input  logic [31:0] instruction_data,
+    output logic [31:0] instruction_address
+
 );
 
 /*<><<><><><><><><><><><><><><><><><><><><><><><>
@@ -15,7 +26,6 @@ module pipelined_cpu_core (
 //FETCH
 logic [31:0] pc_fetch;
 logic [31:0] pc_next_fetch;
-logic [31:0] instruction_fetch;
 
 // FETCH -> DECODE PIPELINE
 logic [31:0] pc_decode;
@@ -39,6 +49,7 @@ logic jump_decode;
 logic jalr_decode;
 logic [1:0] result_src_decode;
 logic [3:0] alu_op_decode;
+logic [1:0] alu_a_src_decode;
 
 // REGISTER FILE
 logic [31:0] writeback_value_writeback;
@@ -62,6 +73,7 @@ logic [1:0] result_src_execute;
 logic branch_execute;
 logic jump_execute;
 logic jalr_execute;
+logic [1:0] alu_a_src_execute;
 
  // EXICUTE
 logic [31:0] alu_b_execute;
@@ -81,7 +93,6 @@ logic reg_write_memory;
 logic [1:0] result_src_memory;
 
  // MEMORY 
-logic [31:0] read_data_memory;
 logic [31:0] writeback_value_memory;
 
 // HAZARDS
@@ -91,6 +102,8 @@ logic [1:0] forward_a;
 logic [1:0] forward_b;
 logic [31:0] forwarded_a_execute;
 logic [31:0] forwarded_b_execute;
+logic [31:0] alu_a_execute;
+
 
 
 
@@ -114,10 +127,8 @@ prog_count program_counter (
 );
 
 // Instantiate instruction memory
-instruction_mem instruction_memory (
-    .address(pc_fetch),
-    .instruction(instruction_fetch)
-);
+assign instruction_address = pc_fetch;
+
 
 /*************************
   FETCH -> DECODE PIPELINE
@@ -127,7 +138,7 @@ fetch_decode_register fetch_decode_reg (
     .clk(clk),
     .reset(reset),
     .pc_in(pc_fetch),
-    .instruction_in(instruction_fetch),
+    .instruction_in(instruction_data),
     .pc_out(pc_decode),
     .instruction_out(instruction_decode),
     .enable(!stall),
@@ -159,7 +170,8 @@ decoder control_unit (
     .jump(jump_decode),
     .result_src(result_src_decode),
     .alu_op(alu_op_decode),
-    .jalr(jalr_decode)
+    .jalr(jalr_decode),
+    .alu_a_src(alu_a_src_decode)
 );
 
 // instiantiate the immediate generator
@@ -226,13 +238,36 @@ decode_execute_reg decode_execute_pipeline_reg (
     .branch_out(branch_execute),
     .jump_out(jump_execute),
     .jalr_out(jalr_execute),
-    .flush(stall || flush)
+    .flush(stall || flush),
+    .alu_a_src_in(alu_a_src_decode),
+    .alu_a_src_out(alu_a_src_execute)
 );
 
 
 /********
  EXICUTE
 *********/
+
+// Select first ALU value
+always_comb begin
+
+    if (alu_a_src_execute == 2'b01) begin
+        // AUIPC uses PC
+        alu_a_execute = pc_execute;
+    end
+
+    else if (alu_a_src_execute == 2'b10) begin
+        // LUI uses zero
+        alu_a_execute = 32'b0;
+    end
+
+    else begin
+        // Normal instructions use rs1
+        alu_a_execute = forwarded_a_execute;
+    end
+
+end
+
 // Select second ALU value
 always_comb begin
 
@@ -244,9 +279,11 @@ always_comb begin
 end
 
 
+
+
 //instiantiate alu
 alu alu_unit (
-    .a(forwarded_a_execute),
+    .a(alu_a_execute),
     .b(alu_b_execute),
     .alu_opp(alu_op_execute),
     .result(alu_result_execute),
@@ -324,14 +361,13 @@ execute_memory_reg execute_memory_pipeline_reg (
   MEMORY 
 *********/
 
-// Instiantiate the data memory
-data_mem data_memory (
-    .clk(clk),
-    .mem_write(mem_write_memory),
-    .address(alu_result_memory),
-    .write_data(read_reg2_memory),
-    .read_data(read_data_memory)
-);
+// Data memory
+
+assign data_address = alu_result_memory;
+assign data_write_data = read_reg2_memory;
+assign data_write_enable = mem_write_memory;
+
+
 
 // Select what value should be written to rd
 always_comb begin
@@ -339,7 +375,7 @@ always_comb begin
     if (result_src_memory == 2'b00)
         writeback_value_memory = alu_result_memory;
     else if (result_src_memory == 2'b01)
-        writeback_value_memory = read_data_memory;
+        writeback_value_memory = data_read_data;
     else if (result_src_memory == 2'b10)
         writeback_value_memory = pc_add4_memory;
     else

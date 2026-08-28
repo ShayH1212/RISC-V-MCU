@@ -39,7 +39,8 @@ module decoder (
     output logic jump,
     output logic jalr,
     output logic [1:0] result_src,
-    output logic [3:0] alu_op
+    output logic [3:0] alu_op,
+    output logic [1:0] alu_a_src
 );
 
     //ALU codes to be sent to the alu
@@ -53,6 +54,9 @@ module decoder (
     localparam ALU_SRA = 4'b0111;
     localparam ALU_SLT = 4'b1000;
     localparam ALU_SLTU = 4'b1001;
+    localparam ALU_A_RS1  = 2'b00;
+    localparam ALU_A_PC   = 2'b01;
+    localparam ALU_A_ZERO = 2'b10;
 
 
     always_comb begin
@@ -66,6 +70,7 @@ module decoder (
         jalr = 1'b0;
         result_src = 2'b00;
         alu_op = ALU_ADD;
+        alu_a_src = ALU_A_RS1;
 
 
    case (opcode)
@@ -212,8 +217,8 @@ module decoder (
         // JAL
         7'b1101111: begin
 
-            reg_write  = 1'b1;
-            jump       = 1'b1;
+            reg_write = 1'b1;
+            jump = 1'b1;
 
             // rd receives PC + 4
             result_src = 2'b10;
@@ -223,34 +228,56 @@ module decoder (
         // JALR
         7'b1100111: begin
 
-        if (funct3 == 3'b000) begin
+            if (funct3 == 3'b000) begin
 
-            reg_write  = 1'b1;
-            jump = 1'b1;
-            jalr = 1'b1;
+                reg_write = 1'b1;
+                jump = 1'b1;
+                jalr = 1'b1;
 
-            // ALU calculates rs1 + immediate
+                // ALU calculates rs1 + immediate
+                val_sec = 1'b1;
+                alu_op = ALU_ADD;
+
+                // rd receives PC + 4
+                result_src = 2'b10;
+
+            end
+
+        end
+
+
+        // LUI
+        7'b0110111: begin
+
+            reg_write = 1'b1;
+
+            // Use immediate as ALU B
             val_sec = 1'b1;
+
+            // Calculate 0 + immediate
+            alu_a_src = ALU_A_ZERO;
             alu_op = ALU_ADD;
 
-            // rd receives PC + 4
-            result_src = 2'b10;
-
-    end
-
-end
-
-
-        default: begin
-
-            reg_write = 1'b0;
-            mem_write = 1'b0;
-            val_sec = 1'b0;
-            branch = 1'b0;
-            jump = 1'b0;
-            jalr = 1'b0;
+            // Write ALU result into rd
             result_src = 2'b00;
+
+        end
+
+
+        // AUIPC
+        7'b0010111: begin
+
+            reg_write = 1'b1;
+
+            // Use immediate as ALU B
+            val_sec = 1'b1;
+
+            // Calculate PC + immediate
+            alu_a_src = ALU_A_PC;
             alu_op = ALU_ADD;
+
+            // Write ALU result into rd
+            result_src = 2'b00;
 
         end
 

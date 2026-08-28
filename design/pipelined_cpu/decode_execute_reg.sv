@@ -43,6 +43,7 @@ module decode_execute_reg (
     input logic branch_in,
     input logic jump_in,
     input logic jalr_in,
+    input logic [1:0] alu_a_src_in,
 
     input logic clk,
     input logic reset,
@@ -67,7 +68,9 @@ module decode_execute_reg (
     output logic [1:0] result_src_out,
     output logic branch_out,
     output logic jump_out,
-    output logic jalr_out
+    output logic jalr_out,
+    output logic [1:0] alu_a_src_out
+
 
 );
 
@@ -91,6 +94,7 @@ always_ff @(posedge clk) begin
         branch_out <= 1'b0;
         jump_out <= 1'b0;
         jalr_out <= 1'b0;
+        alu_a_src_out <= 2'b0;
         end
 
         else if (flush) begin // This allows a cycle of no operation
@@ -109,7 +113,8 @@ always_ff @(posedge clk) begin
         result_src_out <= 2'b0;
         branch_out <= 1'b0;
         jump_out <= 1'b0;
-        jalr_out <= 1'b0;        
+        jalr_out <= 1'b0;
+        alu_a_src_out <= 2'b0;        
         end
 
         else begin // if reset is off store all values
@@ -129,6 +134,7 @@ always_ff @(posedge clk) begin
         branch_out <= branch_in;
         jump_out <= jump_in;
         jalr_out <= jalr_in;
+        alu_a_src_out <= alu_a_src_in;
         end
 end
 
